@@ -14,6 +14,15 @@ uniform mat4 WCVCMatrix;
 uniform mat4 WCMCMatrix;
 uniform mat4 VCMCMatrix;
 
+struct Superellipsoid
+{
+	vec3 Center;
+	vec3 Radius;
+    vec2 Exponent;
+    mat3 Orientation;
+};
+
+
 mat4 rotationAxisAngle( vec3 v, float angle )
 {
     float s = sin(angle);
@@ -56,6 +65,27 @@ float sdTorus( vec3 p, vec2 t )
     return length(q) - t.y;
 }
 
+float sdSe( vec3 p, float s )
+{
+    return length(p)-s;
+}
+// vec3 radius = vec3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 2.0);
+float superellipsoidIOF(vec3 pos, vec3 dir, float t, Superellipsoid se)
+{
+    vec3 e = vec3(vec2(1.0) / se.Exponent.xy, se.Exponent.x / se.Exponent.y);
+    vec3 invr = vec3(1.0) / se.Radius;
+    vec3 p = pos + t * dir;
+
+    vec3 A = p * invr;
+    vec3 B = pow(A * A, e.xxy);
+    float E = B.x + B.y;
+    float F = pow(E, e.z);
+    float P = F + B.z;
+
+    float K = pow(P, se.Exponent.y) - 1.0;
+    return(K);
+}
+
 
 float map( in vec3 position )
 {
@@ -79,6 +109,12 @@ float map( in vec3 position )
     else if(primitiveVSOutput==3){
         d1 = sdEllipsoid((pos)/scaleVSOutput, vec3(0.1, 0.1, 0.3))*scaleVSOutput;
     }
+
+     else if(primitiveVSOutput==4){
+        Superellipsoid se = {vec3(0.0, 0.0, 0.0), vec3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 2.0), vec2(1.0, 1.0), }; //initialize the superquad
+        d1 = sdSe((pos)/scaleVSOutput, 0.25)*scaleVSOutput;
+    }
+
     return d1;
 }
 

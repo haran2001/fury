@@ -15,9 +15,10 @@ scales = np.random.rand(1, 1)
 # sdfactor = actor.sdf(centers=centers, directions=dirs, colors=colors,
 #                      primitives=['sphere', 'torus', 'ellipsoid'],
 #                      scales=scales)
+# primitives=['sphere', 'torus', 'ellipsoid', 'se', 'capsule']
 
 sdfactor = actor.sdf(centers=centers, directions=dirs, colors=colors,
-                     primitives=['ellipsoid'],
+                     primitives=['capsule'],
                      scales=scales)
 
 

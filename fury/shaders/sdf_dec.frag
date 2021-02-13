@@ -115,9 +115,13 @@ float sdTorus( vec3 p, vec2 t )
     return length(q) - t.y;
 }
 
-float sdSe( vec3 p, float s )
-{
-    return length(p)-s;
+float sdCapsule(vec3 p, vec3 a, vec3 b, float r){
+    vec3 ab = vec3(b - a);
+    vec3 ap = vec3(p - a);
+
+    float t = clamp(dot(ab, ap) / dot(ab, ab), 0.0, 1.0);
+    vec3 c = a + t*ab;
+    return length(p-c) - r;
 }
 
 float map( in vec3 position )
@@ -141,8 +145,7 @@ float map( in vec3 position )
     }
     
     else if(primitiveVSOutput==3){
-        // d1 = sdEllipsoid((pos)/scaleVSOutput, vec3(0.1, 0.1, 0.3))*scaleVSOutput;
-        d1 = sdEllipsoid((pos)/scaleVSOutput, vec3(1.0, 1.0, 1.0))*scaleVSOutput;
+        d1 = sdEllipsoid((pos)/scaleVSOutput, vec3(0.1, 0.1, 0.3))*scaleVSOutput;
     }
 
      else if(primitiveVSOutput==4){
@@ -170,6 +173,16 @@ float map( in vec3 position )
         // pos = invm * (pos- se.Center);
         vec3 shift = vec3(abs(sin(u_time)));
         d1 = sdTest((pos - shift)/scaleVSOutput, se)*scaleVSOutput;
+    }
+
+     else if(primitiveVSOutput==5){
+        //  vec3 shift1 = vec3(0.0, -0.2, -0.2);
+         vec3 shift1 = vec3(0.0, -0.1, -0.1);
+         vec3 shift2 = vec3(0.0);
+         vec3 a = vec3(0.0, 0.1, 0.6);
+         vec3 b = vec3(0.0, 0.2, 0.6);
+         float t = 0.2;
+        d1 = sdCapsule((pos - shift1)/scaleVSOutput, a - shift2, b - shift2, t)*scaleVSOutput;
     }
 
     return d1;
@@ -201,3 +214,4 @@ float castRay( in vec3 ro, vec3 rd )
     }
     return t;
 }
+

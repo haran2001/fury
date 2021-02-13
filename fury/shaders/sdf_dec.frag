@@ -13,6 +13,7 @@ uniform mat4 MCWCMatrix;
 uniform mat4 WCVCMatrix;
 uniform mat4 WCMCMatrix;
 uniform mat4 VCMCMatrix;
+uniform float u_time;
 
 #define PI 3.14159265
 
@@ -131,6 +132,7 @@ float map( in vec3 position )
     float d1;
 	
     if(primitiveVSOutput==1){
+		// d1 = sdSphere((pos)/scaleVSOutput, 0.25)*scaleVSOutput;
 		d1 = sdSphere((pos)/scaleVSOutput, 0.25)*scaleVSOutput;
     }
     
@@ -139,23 +141,35 @@ float map( in vec3 position )
     }
     
     else if(primitiveVSOutput==3){
-        d1 = sdEllipsoid((pos)/scaleVSOutput, vec3(0.1, 0.1, 0.3))*scaleVSOutput;
+        // d1 = sdEllipsoid((pos)/scaleVSOutput, vec3(0.1, 0.1, 0.3))*scaleVSOutput;
+        d1 = sdEllipsoid((pos)/scaleVSOutput, vec3(1.0, 1.0, 1.0))*scaleVSOutput;
     }
 
      else if(primitiveVSOutput==4){
-        vec3 center = vec3(5.0, 5.0, 5.0);
-        vec3 radius = vec3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 2.0);
-        vec2 e = vec2(2.0);
+        vec3 center = vec3(0.0, 0.0, 0.0);
+        // vec3 radius = vec3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 2.0);
+        // vec3 radius = vec3(1.0 / 12.0, 1.0 / 12.0, 1.0 / 8.0);
+        // vec3 radius = vec3(1.0, 1.0, 1.5);
+        float a = 0.5;
+        float b = 0.5;
+        vec3 radius = vec3(a , a, b);
+        vec2 e = vec2(1.0);
         
         vec3 axis1 = vec3(0.0, 1.0, 1.0);
         vec3 axis = axis1;
         mat4 o = AxisAngleToMatrix(normalize(axis), PI);
 
-        Superellipsoid se = {center, radius, e, mat3(o)};
+        // Superellipsoid se = {center, radius, e, mat3(o)};
+        Superellipsoid se;
+        se.Center = center;
+        se.Radius = radius;
+        se.Exponent = e;
+        se.Orientation = mat3(o);
         
         // mat3 invm = transpose(se.Orientation);
         // pos = invm * (pos- se.Center);
-        d1 = sdTest(pos/scaleVSOutput, se)*scaleVSOutput;
+        vec3 shift = vec3(abs(sin(u_time)));
+        d1 = sdTest((pos - shift)/scaleVSOutput, se)*scaleVSOutput;
     }
 
     return d1;

@@ -792,9 +792,9 @@ def odf_slicer(odfs, affine=None, mask=None, sphere=None, scale=0.5,
     Create an actor for rendering a grid of ODFs given an array of
     spherical function (SF) or spherical harmonics (SH) coefficients.
 <<<<<<< HEAD
-=======
 
->>>>>>> fury-gl-master
+=======
+>>>>>>> master
     Parameters
     ----------
     odfs : ndarray
@@ -828,9 +828,9 @@ def odf_slicer(odfs, affine=None, mask=None, sphere=None, scale=0.5,
         coefficents on the `sphere`. If None, then the input is assumed
         to be expressed in SF coefficients.
 <<<<<<< HEAD
-=======
 
->>>>>>> fury-gl-master
+=======
+>>>>>>> master
     Returns
     ---------
     actor : OdfSlicerActor

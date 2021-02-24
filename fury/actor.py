@@ -9,20 +9,21 @@ from vtk.util import numpy_support
 from fury.shaders import (load, shader_to_actor, attribute_to_actor,
                           add_shader_callback, replace_shader_in_actor)
 from fury import layout
-from fury.colormap import colormap_lookup_table, create_colormap, orient2rgb
+from fury.colormap import colormap_lookup_table
 from fury.deprecator import deprecated_params
 from fury.utils import (lines_to_vtk_polydata, set_input, apply_affine,
                         set_polydata_vertices, set_polydata_triangles,
-                        numpy_to_vtk_matrix, shallow_copy, rgb_to_vtk,
-                        repeat_sources, get_actor_from_primitive)
+                        shallow_copy, rgb_to_vtk, numpy_to_vtk_matrix,
+                        repeat_sources, get_actor_from_primitive,
+                        fix_winding_order)
 from fury.io import load_image
+from fury.actors.odf_slicer import OdfSlicerActor
 import fury.primitive as fp
 
 
 def slicer(data, affine=None, value_range=None, opacity=1.,
            lookup_colormap=None, interpolation='linear', picking_tol=0.025):
     """Cut 3D scalar or rgb volumes into 2D images.
-
     Parameters
     ----------
     data : array, shape (X, Y, Z) or (X, Y, Z, 3)
@@ -46,7 +47,6 @@ def slicer(data, affine=None, value_range=None, opacity=1.,
     picking_tol : float, optional
         The tolerance for the vtkCellPicker, specified as a fraction of
         rendering window size.
-
     Returns
     -------
     image_actor : ImageActor
@@ -54,7 +54,6 @@ def slicer(data, affine=None, value_range=None, opacity=1.,
         as slices. The key method of this object is ``display_extent`` where
         one can input grid coordinates and display the slice in space (or grid)
         coordinates as calculated by the affine parameter.
-
     """
     if value_range is None:
         value_range = (data.min(), data.max())
@@ -259,7 +258,6 @@ def surface(vertices, faces=None, colors=None, smooth=None, subdivision=3):
     """Generates a surface actor from an array of vertices
         The color and smoothness of the surface can be customized by specifying
         the type of subdivision algorithm and the number of subdivisions.
-
         Parameters
         ----------
         vertices : array, shape (X, Y, Z)
@@ -280,13 +278,11 @@ def surface(vertices, faces=None, colors=None, smooth=None, subdivision=3):
             each triangulation of the point cloud.
             The higher the value, smoother the surface
             but at the cost of higher computation
-
         Returns
         -------
         surface_actor : vtkActor
             A vtkActor visualizing the final surface
             computed from the point cloud is returned.
-
     """
     from scipy.spatial import Delaunay
     points = vtk.vtkPoints()
@@ -334,9 +330,7 @@ def surface(vertices, faces=None, colors=None, smooth=None, subdivision=3):
 def contour_from_roi(data, affine=None,
                      color=np.array([1, 0, 0]), opacity=1):
     """Generate surface actor from a binary ROI.
-
     The color and opacity of the surface can be customized.
-
     Parameters
     ----------
     data : array, shape (X, Y, Z)
@@ -348,13 +342,11 @@ def contour_from_roi(data, affine=None,
         RGB values in [0,1].
     opacity : float
         Opacity of surface between 0 and 1.
-
     Returns
     -------
     contour_assembly : vtkAssembly
         ROI surface object displayed in space
         coordinates as calculated by the affine parameter.
-
     """
     if data.ndim != 3:
         raise ValueError('Only 3D arrays are currently supported.')
@@ -435,9 +427,7 @@ def contour_from_roi(data, affine=None,
 
 def contour_from_label(data, affine=None, color=None):
     """Generate surface actor from a labeled Array.
-
     The color and opacity of individual surfaces can be customized.
-
     Parameters
     ----------
     data : array, shape (X, Y, Z)
@@ -449,7 +439,6 @@ def contour_from_label(data, affine=None, color=None):
         RGB/RGBA values in [0,1]. Default is None.
         If None then random colors are used.
         Alpha channel is set to 1 by default.
-
     Returns
     -------
     contour_assembly : vtkAssembly
@@ -489,12 +478,10 @@ def streamtube(lines, colors=None, opacity=1, linewidth=0.1, tube_sides=9,
                lod=True, lod_points=10 ** 4, lod_points_size=3,
                spline_subdiv=None, lookup_colormap=None):
     """Use streamtubes to visualize polylines
-
     Parameters
     ----------
     lines : list
         list of N curves represented as 2D ndarrays
-
     colors : array (N, 3), list of arrays, tuple (3,), array (K,)
         If None or False, a standard orientation colormap is used for every
         line.
@@ -514,7 +501,6 @@ def streamtube(lines, colors=None, opacity=1, linewidth=0.1, tube_sides=9,
         streamline.
         If an array (X, Y, Z) or (X, Y, Z, 3) is given then the values for the
         colormap are interpolated automatically using trilinear interpolation.
-
     opacity : float, optional
         Takes values from 0 (fully transparent) to 1 (opaque). Default is 1.
     linewidth : float, optional
@@ -534,7 +520,6 @@ def streamtube(lines, colors=None, opacity=1, linewidth=0.1, tube_sides=9,
     lookup_colormap : vtkLookupTable, optional
         Add a default lookup table to the colormap. Default is None which calls
         :func:`fury.actor.colormap_lookup_table`.
-
     Examples
     --------
     >>> import numpy as np
@@ -545,7 +530,6 @@ def streamtube(lines, colors=None, opacity=1, linewidth=0.1, tube_sides=9,
     >>> c = actor.streamtube(lines, colors)
     >>> scene.add(c)
     >>> #window.show(scene)
-
     Notes
     -----
     Streamtubes can be heavy on GPU when loading many streamlines and
@@ -554,17 +538,13 @@ def streamtube(lines, colors=None, opacity=1, linewidth=0.1, tube_sides=9,
     streamline. In Dipy we provide an algorithm that will reduce the number of
     points on the straighter parts of the streamline but keep more points on
     the curvier parts. This can be used in the following way::
-
         from dipy.tracking.distances import approx_polygon_track
         lines = [approx_polygon_track(line, 0.2) for line in lines]
-
     Alternatively we suggest using the ``line`` actor which is much more
     efficient.
-
     See Also
     --------
     :func:`fury.actor.line`
-
     """
     # Poly data with lines and colors
     poly_data, color_is_scalar = lines_to_vtk_polydata(lines, colors)
@@ -634,11 +614,9 @@ def line(lines, colors=None, opacity=1, linewidth=1,
          spline_subdiv=None, lod=True, lod_points=10 ** 4, lod_points_size=3,
          lookup_colormap=None, depth_cue=False, fake_tube=False):
     """Create an actor for one or more lines.
-
     Parameters
     ------------
     lines :  list of arrays
-
     colors : array (N, 3), list of arrays, tuple (3,), array (K,)
         If None or False, a standard orientation colormap is used for every
         line.
@@ -658,10 +636,8 @@ def line(lines, colors=None, opacity=1, linewidth=1,
         streamline.
         If an array (X, Y, Z) or (X, Y, Z, 3) is given then the values for the
         colormap are interpolated automatically using trilinear interpolation.
-
     opacity : float, optional
         Takes values from 0 (fully transparent) to 1 (opaque). Default is 1.
-
     linewidth : float, optional
         Line thickness. Default is 1.
     spline_subdiv : int, optional
@@ -683,12 +659,10 @@ def line(lines, colors=None, opacity=1, linewidth=1,
         Works best with linewidth <= 1.
     fake_tube: boolean, optional
         Add shading to lines to approximate the look of tubes.
-
     Returns
     ----------
     v : vtkActor or vtkLODActor object
         Line.
-
     Examples
     ----------
     >>> from fury import actor, window
@@ -698,7 +672,6 @@ def line(lines, colors=None, opacity=1, linewidth=1,
     >>> c = actor.line(lines, colors)
     >>> scene.add(c)
     >>> #window.show(scene)
-
     """
     # Poly data with lines and colors
     poly_data, color_is_scalar = lines_to_vtk_polydata(lines, colors)
@@ -756,21 +729,17 @@ def line(lines, colors=None, opacity=1, linewidth=1,
 
 def scalar_bar(lookup_table=None, title=" "):
     """ Default scalar bar actor for a given colormap (colorbar)
-
     Parameters
     ----------
     lookup_table : vtkLookupTable or None
         If None then ``colormap_lookup_table`` is called with default options.
     title : str
-
     Returns
     -------
     scalar_bar : vtkScalarBarActor
-
     See Also
     --------
     :func:`fury.actor.colormap_lookup_table`
-
     """
     lookup_table_copy = vtk.vtkLookupTable()
     if lookup_table is None:
@@ -789,7 +758,6 @@ def axes(scale=(1, 1, 1), colorx=(1, 0, 0), colory=(0, 1, 0), colorz=(0, 0, 1),
          opacity=1):
     """ Create an actor with the coordinate's system axes where
     red = x, green = y, blue = z.
-
     Parameters
     ----------
     scale : tuple (3,)
@@ -802,7 +770,6 @@ def axes(scale=(1, 1, 1), colorx=(1, 0, 0), colory=(0, 1, 0), colorz=(0, 0, 1),
         z-axis color. Default blue (0, 0, 1).
     opacity : float, optional
         Takes values from 0 (fully transparent) to 1 (opaque). Default is 1.
-
     Returns
     -------
     vtkActor
@@ -818,202 +785,84 @@ def axes(scale=(1, 1, 1), colorx=(1, 0, 0), colory=(0, 1, 0), colorz=(0, 0, 1),
     return arrow(centers, dirs, colors, scales)
 
 
-def odf_slicer(odfs, affine=None, mask=None, sphere=None, scale=2.2,
-               norm=True, radial_scale=True, opacity=1.,
-               colormap='blues', global_cm=False):
-    """ Slice spherical fields in native or world coordinates
-
+def odf_slicer(odfs, affine=None, mask=None, sphere=None, scale=0.5,
+               norm=True, radial_scale=True, opacity=1.0, colormap=None,
+               global_cm=False, B_matrix=None):
+    """
+    Create an actor for rendering a grid of ODFs given an array of
+    spherical function (SF) or spherical harmonics (SH) coefficients.
     Parameters
     ----------
     odfs : ndarray
-        4D array of spherical functions
+        4D ODFs array in SF or SH coefficients. If SH coefficients,
+        `B_matrix` must be supplied.
     affine : array
-        4x4 transformation array from native coordinates to world coordinates
+        4x4 transformation array from native coordinates to world coordinates.
     mask : ndarray
-        3D mask
-    sphere : Sphere
-        a sphere
+        3D mask to apply to ODF field.
+    sphere : dipy Sphere
+        The sphere used for SH to SF projection. If None, a default sphere
+        of 100 vertices will be used.
     scale : float
-        Distance between spheres.
+        Multiplicative factor to apply to ODF amplitudes.
     norm : bool
-        Normalize `sphere_values`.
+        Normalize SF amplitudes so that the maximum
+        ODF amplitude per voxel along a direction is 1.
     radial_scale : bool
-        Scale sphere points according to odf values.
+        Scale sphere points by ODF values.
     opacity : float
-        Takes values from 0 (fully transparent) to 1 (opaque). Default is 1.
-    colormap : None or str
-        If None then white color is used. Otherwise the name of colormap is
-        given. Matplotlib colormaps are supported (e.g., 'inferno').
+        Takes values from 0 (fully transparent) to 1 (opaque).
+    colormap : None or str or tuple
+        The name of the colormap to use. Matplotlib colormaps are supported
+        (e.g., 'inferno'). A plain color can be supplied as a RGB tuple in
+        range [0, 255]. If None then a RGB colormap is used.
     global_cm : bool
         If True the colormap will be applied in all ODFs. If False
-        it will be applied individually at each voxel (default False).
-
+        it will be applied individually at each voxel.
+    B_matrix : ndarray (n_coeffs, n_vertices)
+        Optional SH to SF matrix for projecting `odfs` given in SH
+        coefficents on the `sphere`. If None, then the input is assumed
+        to be expressed in SF coefficients.
     Returns
     ---------
-    actor : vtkActor
-        Spheres
+    actor : OdfSlicerActor
+        vtkActor representing the ODF field.
     """
+    # first we check if the input array is 4D
+    n_dims = len(odfs.shape)
+    if n_dims != 4:
+        raise ValueError('Invalid number of dimensions for odfs. Expected 4 '
+                         'dimensions, got {0} dimensions.'.format(n_dims))
 
-    if mask is None:
-        mask = np.ones(odfs.shape[:3], dtype=np.bool)
+    # we generate indices for all nonzero voxels
+    valid_odf_mask = np.abs(odfs).max(axis=-1) > 0.
+    if mask is not None:
+        valid_odf_mask = np.logical_and(valid_odf_mask, mask)
+    indices = np.nonzero(valid_odf_mask)
+    shape = odfs.shape[:-1]
+
+    if sphere is None:
+        # Use a default sphere with 100 vertices
+        vertices, faces = fp.prim_sphere('repulsion100')
     else:
-        mask = mask.astype(np.bool)
+        vertices = sphere.vertices
+        faces = fix_winding_order(vertices, sphere.faces, clockwise=True)
 
-    szx, szy, szz = odfs.shape[:3]
-
-    class OdfSlicerActor(vtk.vtkLODActor):
-        def __init__(self):
-            self.mapper = None
-
-        def display_extent(self, x1, x2, y1, y2, z1, z2):
-            tmp_mask = np.zeros(odfs.shape[:3], dtype=np.bool)
-            tmp_mask[x1:x2 + 1, y1:y2 + 1, z1:z2 + 1] = True
-            tmp_mask = np.bitwise_and(tmp_mask, mask)
-
-            self.mapper = _odf_slicer_mapper(odfs=odfs,
-                                             affine=affine,
-                                             mask=tmp_mask,
-                                             sphere=sphere,
-                                             scale=scale,
-                                             norm=norm,
-                                             radial_scale=radial_scale,
-                                             colormap=colormap,
-                                             global_cm=global_cm)
-            self.SetMapper(self.mapper)
-
-        def display(self, x=None, y=None, z=None):
-            if x is None and y is None and z is None:
-                self.display_extent(0, szx - 1, 0, szy - 1,
-                                    int(np.floor(szz/2)), int(np.floor(szz/2)))
-            if x is not None:
-                self.display_extent(x, x, 0, szy - 1, 0, szz - 1)
-            if y is not None:
-                self.display_extent(0, szx - 1, y, y, 0, szz - 1)
-            if z is not None:
-                self.display_extent(0, szx - 1, 0, szy - 1, z, z)
-
-    odf_actor = OdfSlicerActor()
-    odf_actor.display_extent(0, szx - 1, 0, szy - 1,
-                             int(np.floor(szz/2)), int(np.floor(szz/2)))
-    odf_actor.GetProperty().SetOpacity(opacity)
-
-    return odf_actor
-
-
-def _odf_slicer_mapper(odfs, affine=None, mask=None, sphere=None, scale=2.2,
-                       norm=True, radial_scale=True, colormap='plasma',
-                       global_cm=False):
-    """ Helper function for slicing spherical fields
-
-    Parameters
-    ----------
-    odfs : ndarray
-        4D array of spherical functions
-    affine : array
-        4x4 transformation array from native coordinates to world coordinates
-    mask : ndarray
-        3D mask
-    sphere : Sphere
-        a sphere
-    scale : float
-        Distance between spheres.
-    norm : bool
-        Normalize `sphere_values`.
-    radial_scale : bool
-        Scale sphere points according to odf values.
-    colormap : None or str
-        If None then sphere vertices are used to compute orientation-based
-        color. Otherwise the name of colormap is given. Matplotlib colormaps
-        are supported (e.g., 'inferno').
-    global_cm : bool
-        If True the colormap will be applied in all ODFs. If False
-        it will be applied individually at each voxel (default False).
-
-    Returns
-    ---------
-    mapper : vtkPolyDataMapper
-        Spheres mapper
-    """
-    mask = np.ones(odfs.shape[:3]) if mask is None else mask
-
-    ijk = np.ascontiguousarray(np.array(np.nonzero(mask)).T)
-
-    if len(ijk) == 0:
-        return None
-
-    if affine is not None:
-        ijk = np.ascontiguousarray(apply_affine(affine, ijk))
-
-    faces = np.asarray(sphere.faces, dtype=int)
-    vertices = sphere.vertices
-
-    all_xyz = []
-    all_faces = []
-    all_ms = []
-    for (k, center) in enumerate(ijk):
-
-        m = odfs[tuple(center.astype(np.int))].copy()
-
-        if norm:
-            m /= np.abs(m).max()
-
-        if radial_scale:
-            xyz = vertices * m[:, None]
-        else:
-            xyz = vertices.copy()
-
-        all_xyz.append(scale * xyz + center)
-        all_faces.append(faces + k * xyz.shape[0])
-        all_ms.append(m)
-
-    all_xyz = np.ascontiguousarray(np.concatenate(all_xyz))
-    all_xyz_vtk = numpy_support.numpy_to_vtk(all_xyz, deep=True)
-
-    if global_cm:
-        all_ms = np.ascontiguousarray(
-            np.concatenate(all_ms), dtype='f4')
-
-    points = vtk.vtkPoints()
-    points.SetData(all_xyz_vtk)
-
-    all_faces = np.concatenate(all_faces)
-
-    if global_cm:
-        if colormap is None:
-            raise IOError("if global_cm=True, colormap must be defined")
-        else:
-            cols = create_colormap(all_ms.ravel(), colormap)
+    if B_matrix is None:
+        if len(vertices) != odfs.shape[-1]:
+            raise ValueError('Invalid nunber of SF coefficients. '
+                             'Expected {0}, got {1}.'
+                             .format(len(vertices), odfs.shape[-1]))
     else:
-        cols = np.zeros((ijk.shape[0],) + sphere.vertices.shape,
-                        dtype='f4')
-        for k in range(ijk.shape[0]):
-            if colormap is not None:
-                tmp = create_colormap(all_ms[k].ravel(), colormap)
-            else:
-                tmp = orient2rgb(sphere.vertices)
-            cols[k] = tmp.copy()
+        if len(vertices) != B_matrix.shape[1]:
+            raise ValueError('Invalid nunber of SH coefficients. '
+                             'Expected {0}, got {1}.'
+                             .format(len(vertices), B_matrix.shape[1]))
 
-        cols = np.ascontiguousarray(
-            np.reshape(cols, (cols.shape[0] * cols.shape[1],
-                       cols.shape[2])), dtype='f4')
-
-    vtk_colors = numpy_support.numpy_to_vtk(
-        np.asarray(255 * cols),
-        deep=True,
-        array_type=vtk.VTK_UNSIGNED_CHAR)
-
-    vtk_colors.SetName("colors")
-
-    polydata = vtk.vtkPolyData()
-    polydata.SetPoints(points)
-    set_polydata_triangles(polydata, all_faces)
-
-    polydata.GetPointData().SetScalars(vtk_colors)
-
-    mapper = vtk.vtkPolyDataMapper()
-    mapper.SetInputData(polydata)
-
-    return mapper
+    # create and return an instance of OdfSlicerActor
+    return OdfSlicerActor(odfs[indices], vertices, faces, indices, scale, norm,
+                          radial_scale, shape, global_cm, colormap, opacity,
+                          affine, B_matrix)
 
 
 def _makeNd(array, ndim):
@@ -1028,7 +877,6 @@ def _makeNd(array, ndim):
 def tensor_slicer(evals, evecs, affine=None, mask=None, sphere=None, scale=2.2,
                   norm=True, opacity=1., scalar_colors=None):
     """Slice many tensors as ellipsoids in native or world coordinates.
-
     Parameters
     ----------
     evals : (3,) or (X, 3) or (X, Y, 3) or (X, Y, Z, 3) ndarray
@@ -1050,12 +898,10 @@ def tensor_slicer(evals, evecs, affine=None, mask=None, sphere=None, scale=2.2,
     scalar_colors : (3,) or (X, 3) or (X, Y, 3) or (X, Y, Z, 3) ndarray
         RGB colors used to show the tensors
         Default None, color the ellipsoids using ``color_fa``
-
     Returns
     ---------
     actor : vtkActor
         Ellipsoid
-
     """
     if not evals.shape == evecs.shape[:-1]:
         raise RuntimeError(
@@ -1113,7 +959,6 @@ def tensor_slicer(evals, evecs, affine=None, mask=None, sphere=None, scale=2.2,
 def _tensor_slicer_mapper(evals, evecs, affine=None, mask=None, sphere=None,
                           scale=2.2, norm=True, scalar_colors=None):
     """Helper function for slicing tensor fields
-
     Parameters
     ----------
     evals : (3,) or (X, 3) or (X, Y, 3) or (X, Y, Z, 3) ndarray
@@ -1133,12 +978,10 @@ def _tensor_slicer_mapper(evals, evecs, affine=None, mask=None, sphere=None,
     scalar_colors : (3,) or (X, 3) or (X, Y, 3) or (X, Y, Z, 3) ndarray
         RGB colors used to show the tensors
         Default None, color the ellipsoids using ``color_fa``
-
     Returns
     ---------
     mapper : vtkPolyDataMapper
         Ellipsoid mapper
-
     """
     mask = np.ones(evals.shape[:3]) if mask is None else mask
 
@@ -1213,7 +1056,6 @@ def peak_slicer(peaks_dirs, peaks_values=None, mask=None, affine=None,
                 colors=(1, 0, 0), opacity=1., linewidth=1,
                 lod=False, lod_points=10 ** 4, lod_points_size=3):
     """Visualize peak directions as given from ``peaks_from_model``.
-
     Parameters
     ----------
     peaks_dirs : ndarray
@@ -1229,13 +1071,10 @@ def peak_slicer(peaks_dirs, peaks_values=None, mask=None, affine=None,
     colors : tuple or None
         Default red color. If None then every peak gets an orientation color
         in similarity to a DEC map.
-
     opacity : float, optional
         Takes values from 0 (fully transparent) to 1 (opaque)
-
     linewidth : float, optional
         Line thickness. Default is 1.
-
     lod : bool
         Use vtkLODActor(level of detail) rather than vtkActor.
         Default is False. Level of detail actors do not render the full
@@ -1244,15 +1083,12 @@ def peak_slicer(peaks_dirs, peaks_values=None, mask=None, affine=None,
         Number of points to be used when LOD is in effect. Default is 10000.
     lod_points_size : int
         Size of points when lod is in effect. Default is 3.
-
     Returns
     -------
     vtkActor
-
     See Also
     --------
     fury.actor.odf_slicer
-
     """
     peaks_dirs = np.asarray(peaks_dirs)
     if peaks_dirs.ndim > 5:
@@ -1331,7 +1167,6 @@ def peak_slicer(peaks_dirs, peaks_values=None, mask=None, affine=None,
 
 def dots(points, color=(1, 0, 0), opacity=1, dot_size=5):
     """Create one or more 3d points.
-
     Parameters
     ----------
     points : ndarray, (N, 3)
@@ -1339,15 +1174,12 @@ def dots(points, color=(1, 0, 0), opacity=1, dot_size=5):
     opacity : float, optional
         Takes values from 0 (fully transparent) to 1 (opaque)
     dot_size : int
-
     Returns
     --------
     vtkActor
-
     See Also
     ---------
     fury.actor.point
-
     """
     if points.ndim == 2:
         points_no = points.shape[0]
@@ -1389,7 +1221,6 @@ def dots(points, color=(1, 0, 0), opacity=1, dot_size=5):
 
 def point(points, colors, point_radius=0.1, phi=8, theta=8, opacity=1.):
     """Visualize points as sphere glyphs
-
     Parameters
     ----------
     points : ndarray, shape (N, 3)
@@ -1399,11 +1230,9 @@ def point(points, colors, point_radius=0.1, phi=8, theta=8, opacity=1.):
     theta : int
     opacity : float, optional
         Takes values from 0 (fully transparent) to 1 (opaque). Default is 1.
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1412,7 +1241,6 @@ def point(points, colors, point_radius=0.1, phi=8, theta=8, opacity=1.):
     >>> point_actor = actor.point(pts, window.colors.coral)
     >>> scene.add(point_actor)
     >>> # window.show(scene)
-
     """
     return sphere(centers=points, colors=colors, radii=point_radius, phi=phi,
                   theta=theta, vertices=None, faces=None, opacity=opacity)
@@ -1421,7 +1249,6 @@ def point(points, colors, point_radius=0.1, phi=8, theta=8, opacity=1.):
 def sphere(centers, colors, radii=1., phi=16, theta=16,
            vertices=None, faces=None, opacity=1):
     """Visualize one or many spheres with different colors and radii
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1439,12 +1266,9 @@ def sphere(centers, colors, radii=1., phi=16, theta=16,
         If not then a sphere is created with the provided vertices and faces.
     opacity : float, optional
         Takes values from 0 (fully transparent) to 1 (opaque). Default is 1.
-
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1453,7 +1277,6 @@ def sphere(centers, colors, radii=1., phi=16, theta=16,
     >>> sphere_actor = actor.sphere(centers, window.colors.coral)
     >>> scene.add(sphere_actor)
     >>> # window.show(scene)
-
     """
     src = vtk.vtkSphereSource() if faces is None else None
 
@@ -1474,7 +1297,6 @@ def sphere(centers, colors, radii=1., phi=16, theta=16,
 def cylinder(centers, directions, colors, radius=0.05, heights=1,
              capped=False, resolution=6, vertices=None, faces=None):
     """Visualize one or many cylinder with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1496,11 +1318,9 @@ def cylinder(centers, directions, colors, radius=0.05, heights=1,
     faces : ndarray, shape (M, 3)
         If faces is None then a sphere is created based on theta and phi angles
         If not then a sphere is created with the provided vertices and faces.
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1511,7 +1331,6 @@ def cylinder(centers, directions, colors, radius=0.05, heights=1,
     >>> actor = actor.cylinder(centers, dirs, (1, 1, 1), heights=heights)
     >>> scene.add(actor)
     >>> # window.show(scene)
-
     """
     src = vtk.vtkCylinderSource() if faces is None else None
 
@@ -1530,7 +1349,6 @@ def cylinder(centers, directions, colors, radius=0.05, heights=1,
 
 def square(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=1):
     """Visualize one or many squares with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1541,11 +1359,9 @@ def square(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=1):
         RGB or RGBA (for opacity) R, G, B and A should be at the range [0, 1]
     scales : int or ndarray (N,3) or tuple (3,), optional
         Square size on each direction (x, y), default(1)
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1555,7 +1371,6 @@ def square(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=1):
     >>> sq_actor = actor.square(centers, dirs)
     >>> scene.add(sq_actor)
     >>> # window.show(scene)
-
     """
     verts, faces = fp.prim_square()
     res = fp.repeat_primitive(verts, faces, directions=directions,
@@ -1570,7 +1385,6 @@ def square(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=1):
 def rectangle(centers, directions=(1, 0, 0), colors=(1, 0, 0),
               scales=(1, 2, 0)):
     """Visualize one or many rectangles with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1581,11 +1395,9 @@ def rectangle(centers, directions=(1, 0, 0), colors=(1, 0, 0),
         RGB or RGBA (for opacity) R, G, B and A should be at the range [0, 1]
     scales : int or ndarray (N,3) or tuple (3,), optional
         Rectangle size on each direction (x, y), default(1)
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1595,7 +1407,6 @@ def rectangle(centers, directions=(1, 0, 0), colors=(1, 0, 0),
     >>> rect_actor = actor.rectangle(centers, dirs)
     >>> scene.add(rect_actor)
     >>> # window.show(scene)
-
     """
     return square(centers=centers, directions=directions, colors=colors,
                   scales=scales)
@@ -1605,7 +1416,6 @@ def rectangle(centers, directions=(1, 0, 0), colors=(1, 0, 0),
                    since='0.6', until='0.8')
 def box(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=(1, 2, 3)):
     """Visualize one or many boxes with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1616,11 +1426,9 @@ def box(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=(1, 2, 3)):
         RGB or RGBA (for opacity) R, G, B and A should be at the range [0, 1]
     scales : int or ndarray (N,3) or tuple (3,), optional
         Box size on each direction (x, y), default(1)
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1630,7 +1438,6 @@ def box(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=(1, 2, 3)):
     >>> box_actor = actor.box(centers, dirs, (1, 1, 1))
     >>> scene.add(box_actor)
     >>> # window.show(scene)
-
     """
     verts, faces = fp.prim_box()
     res = fp.repeat_primitive(verts, faces, directions=directions,
@@ -1644,7 +1451,6 @@ def box(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=(1, 2, 3)):
 @deprecated_params('heights', 'scales', since='0.6', until='0.8')
 def cube(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=1):
     """Visualize one or many cubes with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1655,11 +1461,9 @@ def cube(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=1):
         RGB or RGBA (for opacity) R, G, B and A should be at the range [0, 1]
     scales : int or ndarray (N,3) or tuple (3,), optional
         Cube size, default=1
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1669,7 +1473,6 @@ def cube(centers, directions=(1, 0, 0), colors=(1, 0, 0), scales=1):
     >>> cube_actor = actor.cube(centers, dirs)
     >>> scene.add(cube_actor)
     >>> # window.show(scene)
-
     """
     return box(centers=centers, directions=directions, colors=colors,
                scales=scales)
@@ -1679,7 +1482,6 @@ def arrow(centers, directions, colors, heights=1., resolution=10,
           tip_length=0.35, tip_radius=0.1, shaft_radius=0.03,
           vertices=None, faces=None):
     """Visualize one or many arrows with differents features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1704,11 +1506,9 @@ def arrow(centers, directions, colors, heights=1., resolution=10,
         If faces is None then a arrow is created based on directions, heights
         and resolution. If not then a arrow is created with the provided
         vertices and faces.
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1719,7 +1519,6 @@ def arrow(centers, directions, colors, heights=1., resolution=10,
     >>> arrow_actor = actor.arrow(centers, directions, (1, 1, 1), heights)
     >>> scene.add(arrow_actor)
     >>> # window.show(scene)
-
     """
     src = vtk.vtkArrowSource() if faces is None else None
 
@@ -1739,7 +1538,6 @@ def arrow(centers, directions, colors, heights=1., resolution=10,
 def cone(centers, directions, colors, heights=1., resolution=10,
          vertices=None, faces=None):
     """Visualize one or many cones with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1758,11 +1556,9 @@ def cone(centers, directions, colors, heights=1., resolution=10,
         If faces is None then a cone is created based on directions, heights
         and resolution. If not then a cone is created with the provided
         vertices and faces.
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1773,7 +1569,6 @@ def cone(centers, directions, colors, heights=1., resolution=10,
     >>> cone_actor = actor.cone(centers, directions, (1, 1, 1), heights)
     >>> scene.add(cone_actor)
     >>> # window.show(scene)
-
     """
     src = vtk.vtkConeSource() if faces is None else None
 
@@ -1789,7 +1584,6 @@ def cone(centers, directions, colors, heights=1., resolution=10,
 def octagonalprism(centers, directions=(1, 0, 0), colors=(1, 0, 0),
                    scales=1):
     """Visualize one or many octagonal prisms with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1800,11 +1594,9 @@ def octagonalprism(centers, directions=(1, 0, 0), colors=(1, 0, 0),
         RGB or RGBA (for opacity) R, G, B and A should be at the range [0, 1]
     scales : int or ndarray (N,3) or tuple (3,), optional
         Octagonal prism size on each direction (x, y), default(1)
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1816,7 +1608,6 @@ def octagonalprism(centers, directions=(1, 0, 0), colors=(1, 0, 0),
     >>> actor = actor.octagonalprism(centers, dirs, colors, scales)
     >>> scene.add(actor)
     >>> # window.show(scene)
-
     """
     verts, faces = fp.prim_octagonalprism()
     res = fp.repeat_primitive(verts, faces, directions=directions,
@@ -1829,7 +1620,6 @@ def octagonalprism(centers, directions=(1, 0, 0), colors=(1, 0, 0),
 
 def frustum(centers, directions=(1, 0, 0), colors=(0, 1, 0), scales=1):
     """Visualize one or many frustum pyramids with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1843,7 +1633,6 @@ def frustum(centers, directions=(1, 0, 0), colors=(0, 1, 0), scales=1):
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1855,7 +1644,6 @@ def frustum(centers, directions=(1, 0, 0), colors=(0, 1, 0), scales=1):
     >>> actor = actor.frustum(centers, dirs, colors, scales)
     >>> scene.add(actor)
     >>> # window.show(scene)
-
     """
     verts, faces = fp.prim_frustum()
     res = fp.repeat_primitive(verts, faces, directions=directions,
@@ -1869,7 +1657,6 @@ def frustum(centers, directions=(1, 0, 0), colors=(0, 1, 0), scales=1):
 def superquadric(centers, roundness=(1, 1), directions=(1, 0, 0),
                  colors=(1, 0, 0), scales=1):
     """Visualize one or many superquadrics with different features.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1882,11 +1669,9 @@ def superquadric(centers, roundness=(1, 1), directions=(1, 0, 0),
         RGB or RGBA (for opacity) R, G, B and A should be at the range [0, 1]
     scales : ndarray, shape (N) or (N,3) or float or int, optional
         The height of the cone.
-
     Returns
     -------
     vtkActor
-
     Examples
     --------
     >>> from fury import window, actor
@@ -1900,7 +1685,6 @@ def superquadric(centers, roundness=(1, 1), directions=(1, 0, 0),
     ...                               colors=colors, scales=scales)
     >>> scene.add(sq_actor)
     >>> # window.show(scene)
-
     """
     def have_2_dimensions(arr):
         return all(isinstance(i, (list, tuple, np.ndarray)) for i in arr)
@@ -1928,10 +1712,8 @@ def superquadric(centers, roundness=(1, 1), directions=(1, 0, 0),
 def billboard(centers, colors=(0, 1, 0), scales=1, vs_dec=None, vs_impl=None,
               fs_dec=None, fs_impl=None, gs_dec=None, gs_impl=None):
     """Create a billboard actor.
-
     Billboards are 2D elements incrusted in a 3D world. It offers you the
     possibility to draw differents shapes/elements at the shader level.
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -1954,11 +1736,9 @@ def billboard(centers, colors=(0, 1, 0), scales=1, vs_dec=None, vs_impl=None,
     gs_impl : str or list of str, optional
         Geometry shaders code that contains all variable/function
         mplementation
-
     Returns
     -------
     vtkActor
-
     """
     verts, faces = fp.prim_square()
     res = fp.repeat_primitive(verts, faces, centers=centers, colors=colors,
@@ -2011,9 +1791,7 @@ def billboard(centers, colors=(0, 1, 0), scales=1, vs_dec=None, vs_impl=None,
 def label(text='Origin', pos=(0, 0, 0), scale=(0.2, 0.2, 0.2),
           color=(1, 1, 1)):
     """Create a label actor.
-
     This actor will always face the camera
-
     Parameters
     ----------
     text : str
@@ -2024,12 +1802,10 @@ def label(text='Origin', pos=(0, 0, 0), scale=(0.2, 0.2, 0.2),
         Changes the size of the label.
     color : (3,) array_like
         Label color as ``(r,g,b)`` tuple.
-
     Returns
     -------
     l : vtkActor object
         Label.
-
     Examples
     --------
     >>> from fury import window, actor
@@ -2037,7 +1813,6 @@ def label(text='Origin', pos=(0, 0, 0), scale=(0.2, 0.2, 0.2),
     >>> l = actor.label(text='Hello')
     >>> scene.add(l)
     >>> #window.show(scene)
-
     """
     atext = vtk.vtkVectorText()
     atext.SetText(text)
@@ -2060,7 +1835,6 @@ def text_3d(text, position=(0, 0, 0), color=(1, 1, 1),
             vertical_justification="bottom",
             bold=False, italic=False, shadow=False):
     """ Generate 2D text that lives in the 3D world
-
     Parameters
     ----------
     text : str
@@ -2075,7 +1849,6 @@ def text_3d(text, position=(0, 0, 0), color=(1, 1, 1),
     bold : bool
     italic : bool
     shadow : bool
-
     Returns
     -------
     textActor3D
@@ -2201,19 +1974,16 @@ def text_3d(text, position=(0, 0, 0), color=(1, 1, 1),
 class Container(object):
     """ Provides functionalities for grouping multiple actors using a given
     layout.
-
     Attributes
     ----------
     anchor : 3-tuple of float
         Anchor of this container used when laying out items in a container.
         The anchor point is relative to the center of the container.
         Default: (0, 0, 0).
-
     padding : 6-tuple of float
         Padding around this container bounding box. The 6-tuple represents
         (pad_x_neg, pad_x_pos, pad_y_neg, pad_y_pos, pad_z_neg, pad_z_pos).
         Default: (0, 0, 0, 0, 0, 0)
-
     """
     def __init__(self, layout=layout.Layout()):
         """
@@ -2239,7 +2009,6 @@ class Container(object):
 
     def add(self, *items, **kwargs):
         """ Adds some items to this container.
-
         Parameters
         ----------
         items : `vtkProp3D` objects
@@ -2339,7 +2108,6 @@ class Container(object):
 def grid(actors, captions=None, caption_offset=(0, -100, 0), cell_padding=0,
          cell_shape="rect", aspect_ratio=16/9., dim=None):
     """ Creates a grid of actors that lies in the xy-plane.
-
     Parameters
     ----------
     actors : list of `vtkProp3D` objects
@@ -2367,7 +2135,6 @@ def grid(actors, captions=None, caption_offset=(0, -100, 0), cell_padding=0,
     dim : tuple of int
         Dimension (nb_rows, nb_cols) of the grid. If provided,
         `aspect_ratio` will be ignored.
-
     Returns
     -------
     ``fury.actor.Container`` object
@@ -2411,13 +2178,11 @@ def grid(actors, captions=None, caption_offset=(0, -100, 0), cell_padding=0,
 
 def figure(pic, interpolation='nearest'):
     """ Return a figure as an image actor
-
     Parameters
     ----------
     pic : filename or numpy RGBA array
     interpolation : str
         Options are nearest, linear or cubic. Default is nearest.
-
     Returns
     -------
     image_actor : vtkImageActor
@@ -2461,14 +2226,12 @@ def figure(pic, interpolation='nearest'):
 
 def texture(rgb, interp=True):
     """ Map an RGB or RGBA texture on a plane
-
     Parameters
     ----------
     rgb : ndarray
         Input 2D RGB or RGBA array. Dtype should be uint8.
     interp : bool
         Interpolate between grid centers. Default True.
-
     Returns
     -------
     vtkActor
@@ -2542,7 +2305,6 @@ def texture_on_sphere(rgb, theta=60, phi=60, interpolate=True):
 def sdf(centers, directions=(1, 0, 0), colors=(1, 0, 0), primitives='torus',
         scales=1):
     """Create a SDF primitive based actor
-
     Parameters
     ----------
     centers : ndarray, shape (N, 3)
@@ -2553,17 +2315,15 @@ def sdf(centers, directions=(1, 0, 0), colors=(1, 0, 0), primitives='torus',
         The orientation vector of the SDF primitive.
     primitives : str, list, tuple, np.ndarray
         The primitive of choice to be rendered.
-        Options are sphere and torus. Default is torus.
+        Options are sphere, torus and ellipsoid. Default is torus.
     scales : float
         The size of the SDF primitive
-
     Returns
     -------
     vtkActor
     """
 
-    # prims = {'sphere': 1, 'torus': 2, 'ellipsoid': 3}
-    prims = {'sphere': 1, 'torus': 2, 'ellipsoid': 3, 'se': 4, 'capsule': 5}
+    prims = {'sphere': 1, 'torus': 2, 'ellipsoid': 3, 'capsule': 4}
 
     verts, faces = fp.prim_box()
     repeated = fp.repeat_primitive(verts, faces, centers=centers,

@@ -128,16 +128,7 @@ float map( in vec3 position )
     }
 
     else if(primitiveVSOutput==4){
-<<<<<<< HEAD
         d1 = sdCapsule((pos)/scaleVSOutput, vec3(0.0, -0.3, 0.2), vec3(0.0, -0.1, 0.2), 0.2)*scaleVSOutput;
-=======
-        // vec2 exponent = vec2(1.0);
-        // vec2 exponent = vec2(0.1);
-        vec2 exponent = vec2(2.0);
-        // vec2 exponent = vec2(1.5);
-        
-        d1 = sdSE((pos)/scaleVSOutput, vec3(1.0, 1.0, 1.0), vec3(10.0 / 3.0, 10.0 / 3.0, 10.0 / 2.0), exponent)*scaleVSOutput;
->>>>>>> abb2de9 (completed sdf and tests)
     }
     return d1;
 }

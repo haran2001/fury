@@ -5,10 +5,7 @@ import itertools
 
 time = 0
 incre_time = 0.09
-velocity = 0.5
-
-angular_frq1 = 0.01
-angular_frq2 = 0.01
+velocity = 1
 
 phase_angle1 = 0.0
 phase_angle2 = 3.14
@@ -23,24 +20,26 @@ showm = window.ShowManager(scene,
 showm.initialize()
 
 
+
 yo1 = 10
 zo1 = 10
 xo1 = 10
 
 total_time1 = 2 * yo1 / (velocity / np.sqrt(3))
 
-y2 = 0
-z2 = 0
-x2 = 0
+yo2 = 0
+zo2 = 0
+xo2 = 0
 
 color_particle = window.colors.red  # color of particle can be manipulated
 pts1 = np.array([[xo1, yo1, zo1]])
-pts2 = np.array([[x2, y2, z2]])
+# pts1 = np.array([[xo1, yo1, zo1]])
+# pts2 = np.array([[x2, y2, z2]])
 
 # line1 = [np.array([[-2.0, 0.0, 0.0], [2.0, 0.0, 0.0]])]
 # line2 = [np.array([[-2.0, 1.0, 0.0], [2.0, 1.0, 0.0]])]
 
-charge_actor1= actor.point(np.array([[xo1, yo1, zo1]]), colors=(1, 0, 0))
+charge_actor1 = actor.point(np.array([[xo1, yo1, zo1]]), colors=(1, 0, 0))
 
 scene.add(charge_actor1)
 
@@ -57,6 +56,8 @@ coor_1 = np.array([0, 0, 0])
 counter = itertools.count()
 
 end = 5000
+
+coor_1 = np.array([xo1, yo1, zo1])
 
 def timer_callback(_obj, _event):
     global pts, time, incre_time, coor_1
@@ -89,7 +90,12 @@ def timer_callback(_obj, _event):
     if time < total_time1:
         utils.update_actor(charge_actor1)
     # utils.update_actor(charge_actor2)
-
+    coor_2 = np.array([x1, y1, z1])
+    coors = np.array([coor_1, coor_2])
+    coors = [coors]
+    line_actor = actor.line(coors, window.colors.cyan, linewidth=3)
+    scene.add(line_actor)
+    coor_1 = coor_2
     showm.render()
 
     if cnt == end:

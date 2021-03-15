@@ -108,9 +108,13 @@ def timer_callback(_obj, _event):
         x2 = xo2 - (velocity * time)/(np.sqrt(3))
 
     elif (time >= total_time1/2):
-        y2 = (velocity * time)/(np.sqrt(3)) - yo2
-        z2 = zo2 - (velocity * time)/(np.sqrt(3))
-        x2 = xo2 - (velocity * time)/(np.sqrt(3))
+        # y2 = (velocity * time)/(np.sqrt(3)) - yo2
+        # z2 = zo2 - (velocity * time)/(np.sqrt(3))
+        # x2 = xo2 - (velocity * time)/(np.sqrt(3))
+        # y2 = yo2 - (velocity * time)
+        y2 = -(velocity * (time - total_time1/2))
+        z2 = zo2 - (velocity * total_time1*0.5)/(np.sqrt(3))
+        x2 = xo2 - (velocity * total_time1*0.5)/(np.sqrt(3))
     
     if time < total_time1/2:
         y3 = yo3 - (velocity * time)/(np.sqrt(3))

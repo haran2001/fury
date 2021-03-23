@@ -6,8 +6,8 @@ import itertools
 time = 0
 incre_time = 0.09
 
-angular_frq1 = 0.01
-angular_frq2 = 0.01
+angular_frq1 = 0.1
+angular_frq2 = 0.1
 
 phase_angle1 = 0.0
 phase_angle2 = 3.14

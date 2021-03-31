@@ -114,14 +114,14 @@ def timer_callback2(_obj, _event):
     if time < total_time1/2:
         y1 = yo1 - (velocity * time * cos_theta_i)
         z1 = zo1 - (velocity * time * cos_theta_i)
-        x1 = xo1 - (velocity * time * cos_theta_i)
-        # x1 = 10
+        # x1 = xo1 - (velocity * time * cos_theta_i)
+        x1 = -10
 
     elif (time >= total_time1/2):
         y1 = yo1 - (velocity * time * cos_theta_r)
         z1 = zo1 - (velocity * time * cos_theta_r)
-        x1 = xo1 - (velocity * time * cos_theta_r)
-
+        # x1 = xo1 - (velocity * time * cos_theta_r)
+        x1 = -10
     pts1 = np.array([[x1, y1, z1]])
 
     vertices1[:] = initial_vertices1 + np.repeat(pts1, no_vertices_per_point, axis=0)

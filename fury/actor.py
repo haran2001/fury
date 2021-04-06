@@ -2553,7 +2553,7 @@ def sdf(centers, directions=(1, 0, 0), colors=(1, 0, 0), primitives='torus',
         The orientation vector of the SDF primitive.
     primitives : str, list, tuple, np.ndarray
         The primitive of choice to be rendered.
-        Options are sphere, torus and ellipsoid. Default is torus.
+        Options are sphere and torus. Default is torus.
     scales : float
         The size of the SDF primitive
 
@@ -2562,7 +2562,8 @@ def sdf(centers, directions=(1, 0, 0), colors=(1, 0, 0), primitives='torus',
     vtkActor
     """
 
-    prims = {'sphere': 1, 'torus': 2, 'ellipsoid': 3}
+    prims = {'sphere': 1, 'torus': 2, 'ellipsoid': 3,
+             'capsule': 4, 'superellipsoid': 5}
 
     verts, faces = fp.prim_box()
     repeated = fp.repeat_primitive(verts, faces, centers=centers,

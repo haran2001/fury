@@ -1,6 +1,6 @@
 #only one ray
 
-from fury import window, actor, utils, ui
+from fury import window, actor, utils
 import numpy as np
 import itertools
 
@@ -8,7 +8,7 @@ time = 0
 incre_time = 0.09
 velocity = 1
 
-mu1 = 2
+mu1 = 100000
 mu2 = 1
 
 scene = window.Scene()
@@ -24,9 +24,15 @@ yo1 = 10
 zo1 = 10
 xo1 = 10
 
+# dir_x = 1
+# dir_y = 1
+# dir_z = 1
+
+
 dir_x = 1
 dir_y = 1
 dir_z = 1
+
 
 dir1 = np.array([[dir_x, dir_y, dir_z]])
 pts1 = np.array([[xo1, yo1, zo1]])
@@ -45,11 +51,12 @@ total_time1 = 2 * yo1 / (velocity * cos_theta_i)
 
 color_particle = window.colors.red  
 
-
-surface_points = np.array([[10, 0.02, 10],
-                           [-10, 0.04, 10],
-                           [-10, 0.03, -10],
-                           [10, 0.01, -10]])
+length = 10
+width = 10
+surface_points = np.array([[length, 0.02, width],
+                           [-length, 0.04, width],
+                           [-length, 0.03, -width],
+                           [length, 0.01, -width]])
 
 
 charge_actor1 = actor.point(np.array([[xo1, yo1, zo1]]), colors=(1, 0, 0))
@@ -114,14 +121,15 @@ def timer_callback2(_obj, _event):
     if time < total_time1/2:
         y1 = yo1 - (velocity * time * cos_theta_i)
         z1 = zo1 - (velocity * time * cos_theta_i)
-        # x1 = xo1 - (velocity * time * cos_theta_i)
-        x1 = -10
+        x1 = xo1 - (velocity * time * cos_theta_i)
+        # x1 = 10
 
     elif (time >= total_time1/2):
-        y1 = yo1 - (velocity * time * cos_theta_r)
+        # y1 = yo1 - (velocity * time * cos_theta_r)
+        y1 = (yo1 - velocity * time) * cos_theta_r
         z1 = zo1 - (velocity * time * cos_theta_r)
-        # x1 = xo1 - (velocity * time * cos_theta_r)
-        x1 = -10
+        x1 = xo1 - (velocity * time * cos_theta_r)
+
     pts1 = np.array([[x1, y1, z1]])
 
     vertices1[:] = initial_vertices1 + np.repeat(pts1, no_vertices_per_point, axis=0)

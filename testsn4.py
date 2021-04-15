@@ -126,7 +126,7 @@ def timer_callback2(_obj, _event):
 
     elif (time >= total_time1/2):
         # y1 = yo1 - (velocity * time * cos_theta_r)
-        y1 = (yo1 - velocity * time) * cos_theta_r
+        y1 = 2*yo1 - 2*velocity * time * cos_theta_r
         z1 = zo1 - (velocity * time * cos_theta_r)
         x1 = xo1 - (velocity * time * cos_theta_r)
 
